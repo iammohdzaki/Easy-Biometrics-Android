@@ -12,7 +12,7 @@ private const val TAG = "BiometricsHelper"
 Created by Mohammad Zaki
 on Oct,25 2021
  **/
-class BiometricsHelper(var builder: Builder) {
+class BiometricsDialogHelper(var builder: Builder) {
     private val context: Context = builder.context
 
     class Builder(var context: Context) {
@@ -42,8 +42,8 @@ class BiometricsHelper(var builder: Builder) {
             return this
         }
 
-        fun create(): BiometricsHelper {
-            return BiometricsHelper(this)
+        fun create(): BiometricsDialogHelper {
+            return BiometricsDialogHelper(this)
         }
     }
 
