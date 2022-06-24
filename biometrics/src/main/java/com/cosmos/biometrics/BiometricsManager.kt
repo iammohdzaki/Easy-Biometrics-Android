@@ -22,36 +22,50 @@ import javax.crypto.KeyGenerator
 import javax.crypto.NoSuchPaddingException
 import javax.crypto.SecretKey
 
-
 /**
 Created by Mohammad Zaki
 on Jun,24 2022
  **/
-class BiometricsManager(var context: Context,var secretKey : String = "BiometricsManager",var authEvent: AuthEvent) : FingerprintManager.AuthenticationCallback() {
+class BiometricsManager(
+    var context: Context,
+    var secretKey: String = "BiometricsManager",
+    var authEvent: AuthEvent
+) : FingerprintManager.AuthenticationCallback() {
 
-    private val keyguardManager: KeyguardManager = context.getSystemService(KEYGUARD_SERVICE) as KeyguardManager
-    private val fingerprintManager: FingerprintManager = context.getSystemService(FINGERPRINT_SERVICE) as FingerprintManager
-    private val cancellationSignal =  CancellationSignal()
+    private val keyguardManager: KeyguardManager =
+        context.getSystemService(KEYGUARD_SERVICE) as KeyguardManager
+    private val fingerprintManager: FingerprintManager =
+        context.getSystemService(FINGERPRINT_SERVICE) as FingerprintManager
+    private lateinit var cancellationSignal: CancellationSignal
     private lateinit var keyStore: KeyStore
-    private lateinit var cipher : Cipher
+    private lateinit var cipher: Cipher
 
     private val ANDROID_KEY_STORE = "AndroidKeyStore"
 
-    fun registerAuthEvent(){
-        if(canAuthenticate()){
+    /**
+     * Register Auth Event By Calling this method
+     */
+    fun registerAuthEvent() {
+        if (canAuthenticate()) {
             initKeyStore()
-            if(initializeCipher()){
+            if (initializeCipher()) {
                 val cryptoObject = FingerprintManager.CryptoObject(cipher)
-                fingerprintManager.authenticate(cryptoObject,cancellationSignal,0,this,null)
+                cancellationSignal = CancellationSignal()
+                fingerprintManager.authenticate(cryptoObject, cancellationSignal, 0, this, null)
             }
         }
     }
 
-    fun removeAuthEvent(){
-        cancellationSignal.cancel();
+    /**
+     * Remove Auth Event To Stop Listening to auth event
+     */
+    fun removeAuthEvent() {
+        if (this::cancellationSignal.isInitialized){
+            cancellationSignal.cancel()
+        }
     }
 
-    private fun initKeyStore(){
+    private fun initKeyStore() {
         try {
             keyStore = KeyStore.getInstance(ANDROID_KEY_STORE)
             keyStore.load(null);
@@ -79,7 +93,7 @@ class BiometricsManager(var context: Context,var secretKey : String = "Biometric
         }
     }
 
-    private fun initializeCipher() : Boolean{
+    private fun initializeCipher(): Boolean {
         try {
             val cipher = Cipher.getInstance(
                 KeyProperties.KEY_ALGORITHM_AES + "/"
@@ -112,20 +126,24 @@ class BiometricsManager(var context: Context,var secretKey : String = "Biometric
         }
     }
 
-    private fun canAuthenticate() : Boolean{
+    private fun canAuthenticate(): Boolean {
         //Check if the device does not contain the fingerprint hardware.
-        if(!fingerprintManager.isHardwareDetected){
+        if (!fingerprintManager.isHardwareDetected) {
             return false
-        }else{
+        } else {
             // Checks whether fingerprint permission is set on manifest
-            return if (ActivityCompat.checkSelfPermission(context, Manifest.permission.USE_FINGERPRINT)
-                != PackageManager.PERMISSION_GRANTED) {
+            return if (ActivityCompat.checkSelfPermission(
+                    context,
+                    Manifest.permission.USE_FINGERPRINT
+                )
+                != PackageManager.PERMISSION_GRANTED
+            ) {
                 false
-            }else {
+            } else {
                 // Check whether at least one fingerprint is registered
                 if (!fingerprintManager.hasEnrolledFingerprints()) {
                     false
-                }else{
+                } else {
                     // Checks whether lock screen security is enabled or not
                     keyguardManager.isKeyguardSecure
                 }
@@ -133,16 +151,33 @@ class BiometricsManager(var context: Context,var secretKey : String = "Biometric
         }
     }
 
+    /**
+     * Called when an unrecoverable error has been encountered and the operation is complete.
+     * No further callbacks will be made on this object.
+     * @param errorCode An integer identifying the error message
+     * @param errString A human-readable error string that can be shown in UI
+     */
     override fun onAuthenticationError(errorCode: Int, errString: CharSequence?) {
         super.onAuthenticationError(errorCode, errString)
         authEvent.onAuthenticationError(errString.toString())
     }
 
+    /**
+     * Called when a recoverable error has been encountered during authentication. The help
+     * string is provided to give the user guidance for what went wrong, such as
+     * "Sensor dirty, please clean it."
+     * @param helpCode An integer identifying the error message
+     * @param helpString A human-readable string that can be shown in UI
+     */
     override fun onAuthenticationHelp(helpCode: Int, helpString: CharSequence?) {
         super.onAuthenticationHelp(helpCode, helpString)
         authEvent.onAuthenticationHelp(helpString.toString())
     }
 
+    /**
+     * Called when a fingerprint is recognized.
+     * @param result An object containing authentication-related data
+     */
     override fun onAuthenticationSucceeded(result: FingerprintManager.AuthenticationResult?) {
         super.onAuthenticationSucceeded(result)
         authEvent.onAuthenticationSucceeded()
